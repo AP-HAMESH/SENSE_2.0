@@ -82,7 +82,7 @@ BANDS = {
     'alpha': (6.0, 11.0),
     'beta':  (11.0, 30.0),
 }
-POWER_BAND_TOTAL = (3.5, 30.0)
+POWER_BAND_TOTAL = (3.5, 28.0)
 
 BAND_COLORS = {
     'delta': '#4A90D9',
@@ -221,7 +221,7 @@ def ml_normalize(signal):
 def _bp_abs(signal, fs, band):
     freqs, psd = welch(signal, fs, nperseg=min(len(signal), WELCH_NPERSEG))
     idx = (freqs >= band[0]) & (freqs <= band[1])
-    return float(np.trapz(psd[idx], freqs[idx])) if np.any(idx) else 0.0
+    return float(np.trapezoid(psd[idx], freqs[idx])) if np.any(idx) else 0.0
 
 def extract_ml_features(epoch, fs):
     ep    = ml_bandpass(epoch, fs)
@@ -257,10 +257,20 @@ def make_lp(cutoff, fs, order=4):
     b, a = butter(order, cutoff/(fs/2), btype='low')
     return _make(b, a)
 
-b_hp05, a_hp05, zi_hp05   = make_hp(0.5, FS)
-b_notch, a_notch, zi_notch = make_notch(50, FS)
-b_lp,    a_lp,    zi_lp    = make_lp(35, FS)
+b_hp05, a_hp05, zi_hp05 = make_hp(0.3, FS)
+b_notch, a_notch, zi_notch = make_notch(50, FS, Q=40)
+b_notch2, a_notch2, zi_notch2 = make_notch(100, FS, Q=40)
+b_lp,    a_lp,    zi_lp    = make_lp(30, FS)    
 b_hp10,  a_hp10            = butter(4, 1.0/(FS/2), btype='high')
+
+def filter_sample_display(raw_val):
+    global zi_hp05, zi_notch, zi_notch2, zi_lp
+    x = np.array([float(raw_val)])
+    x, zi_hp05   = lfilter(b_hp05,  a_hp05,  x, zi=zi_hp05)
+    x, zi_notch  = lfilter(b_notch, a_notch, x, zi=zi_notch)
+    x, zi_notch2 = lfilter(b_notch2, a_notch2, x, zi=zi_notch2)
+    x, zi_lp     = lfilter(b_lp,    a_lp,    x, zi=zi_lp)
+    return float(x[0])
 
 def filter_sample_display(raw_val):
     global zi_hp05, zi_notch, zi_lp
@@ -324,17 +334,17 @@ def compute_psd_clean(buffer_deque):
     x = filtfilt(b_hp10, a_hp10, x)
     f, p = welch(x, fs=FS, window='hann',
                  nperseg=WELCH_NPERSEG,
-                 noverlap=WELCH_NPERSEG//2,
+                 noverlap=int(WELCH_NPERSEG * 0.75),
                  scaling='density')
     return f, p
 
 def bandpower_psd(freqs, psd, band):
     idx = (freqs >= band[0]) & (freqs <= band[1])
-    return float(np.trapz(psd[idx], freqs[idx])) if np.any(idx) else 0.0
+    return float(np.trapezoid(psd[idx], freqs[idx])) if np.any(idx) else 0.0
 
 def compute_powers(freqs, psd):
     total_idx = (freqs >= POWER_BAND_TOTAL[0]) & (freqs <= POWER_BAND_TOTAL[1])
-    total_p   = float(np.trapz(psd[total_idx], freqs[total_idx]))
+    total_p   = float(np.trapezoid(psd[total_idx], freqs[total_idx]))
     if total_p <= 0:
         return None
     return {
@@ -555,7 +565,7 @@ gw.setBackground('#0f0f12')
 layout.addWidget(gw)
 
 # ── Row 1: Waveform (filtered only — single curve) ───────────────────────────
-p_time = gw.addPlot(title="EEG Signal  (filtered · 0.5 Hz HPF + Notch + 35 Hz LPF)",
+p_time = gw.addPlot(title="EEG Signal  (filtered · 0.5 Hz HPF + Notch + 30 Hz LPF)",
                     colspan=2)
 p_time.setLabel('left', 'Amplitude (ADC counts)')
 p_time.setLabel('bottom', 'Samples →')
