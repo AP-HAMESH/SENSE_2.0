@@ -31,7 +31,7 @@ from pyqtgraph.Qt import QtWidgets, QtCore, QtGui
 parser = argparse.ArgumentParser(description="EEG Live Monitor V5 Fixed")
 parser.add_argument('--port',        default='COM11')
 parser.add_argument('--baud',        default=115200,   type=int)
-parser.add_argument('--bits',        default=8,        type=int, choices=[8, 10, 12, 16, 24])
+parser.add_argument('--bits',        default=12,        type=int, choices=[8, 10, 12, 16, 24])
 parser.add_argument('--baseline-sec', default=60,       type=int,
                     help="Seconds of good data needed before state classification starts. "
                          "Lower this (e.g. 15-20) while debugging to iterate faster.")
@@ -77,7 +77,7 @@ y_scale = 300
 # BAND DEFINITIONS
 # =============================================================================
 BANDS = {
-    'delta': (3.5,  4.0),
+    'delta': (0.5,  4.0),
     'theta': (4.0,  6.0),
     'alpha': (6.0, 11.0),
     'beta':  (11.0, 30.0),
@@ -272,13 +272,6 @@ def filter_sample_display(raw_val):
     x, zi_lp     = lfilter(b_lp,    a_lp,    x, zi=zi_lp)
     return float(x[0])
 
-def filter_sample_display(raw_val):
-    global zi_hp05, zi_notch, zi_lp
-    x = np.array([float(raw_val)])
-    x, zi_hp05   = lfilter(b_hp05,  a_hp05,  x, zi=zi_hp05)
-    x, zi_notch  = lfilter(b_notch, a_notch, x, zi=zi_notch)
-    x, zi_lp     = lfilter(b_lp,    a_lp,    x, zi=zi_lp)
-    return float(x[0])
 
 # =============================================================================
 # BUFFERS
@@ -565,7 +558,7 @@ gw.setBackground('#0f0f12')
 layout.addWidget(gw)
 
 # ── Row 1: Waveform (filtered only — single curve) ───────────────────────────
-p_time = gw.addPlot(title="EEG Signal  (filtered · 0.5 Hz HPF + Notch + 30 Hz LPF)",
+p_time = gw.addPlot(title="EEG Signal  (filtered · 0.3 Hz HPF + Notch + 30 Hz LPF)",
                     colspan=2)
 p_time.setLabel('left', 'Amplitude (ADC counts)')
 p_time.setLabel('bottom', 'Samples →')

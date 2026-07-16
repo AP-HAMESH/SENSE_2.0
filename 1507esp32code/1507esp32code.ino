@@ -1,9 +1,10 @@
 hw_timer_t *timer = NULL;
 volatile bool sampleReady = false;
 volatile uint16_t latestSample = 0;
-
 void IRAM_ATTR onTimer() {
-  latestSample = analogRead(34);
+  uint32_t sum = 0;
+  for (int i = 0; i < 8; i++) sum += analogRead(34);
+  latestSample = sum / 8;
   sampleReady = true;
 }
 
